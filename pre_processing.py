@@ -57,23 +57,35 @@ def stem_fun(var_in):
     #     ps_res.append(ps.stem(word_t))
     return ' '.join(ps_res)
 
+def write_pickle(obj_in, path_in, file_n):
+    import pickle
+    pickle.dump(obj_in, open(path_in + file_n + ".pk", "wb"))
+    
+def read_pickle(path_o, file_n):
+    import pickle
+    my_pd_t = pickle.load(open(path_o + file_n + ".pk", "rb"))
+    return my_pd_t
 #-----------------------------------------------------
 
 import pandas as pd
 import nltk
 data_path = "/Users/vedjain/python_npl/youtube_project/data/"
-
+out_path = "/Users/vedjain/python_npl/youtube_project/"
 
 #read in data
 df = pd.read_csv('US_youtube_trending_data.csv')
 
 #drop all videos besides ones posted in this year
 df.drop(df[df['publishedAt'] < '2022-01-01'].index, inplace = True)
-
 #sort by descending order of when it was trending
+
+cols = ['video_id','title']
+df['num_days_trending'] = df.groupby(cols)['video_id'].transform('size')
+
+df.drop_duplicates(subset = ['video_id'], inplace = True)
+
 df.sort_values(by=["trending_date"], ascending = False, inplace=True)
 
-#reset the indices
 df = df.reset_index(drop=True) #update indicies after sort
 
 
@@ -104,3 +116,5 @@ df['time_diff'] = df.apply(lambda x: time_diff(x['publishedAt'], x['trending_dat
 #nltk.download('punkt')
 df['tokenized_title_sw'] = df['title_sw'].apply(nltk.word_tokenize)
 df['tokenized_description_sw'] = df['description_sw'].apply(nltk.word_tokenize)
+
+write_pickle(df, out_path, "df")
