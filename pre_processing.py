@@ -65,6 +65,17 @@ def read_pickle(path_o, file_n):
     import pickle
     my_pd_t = pickle.load(open(path_o + file_n + ".pk", "rb"))
     return my_pd_t
+
+def get_cat(var_in):
+    cat = pd.read_json("US_category_id.json")
+
+    categories_dict = {}
+
+    for item in cat['items']:
+        # convert id to int and add to dictionary
+        categories_dict[int(item['id'])] = item['snippet']['title']
+        
+    return categories_dict.get(var_in)
 #-----------------------------------------------------
 
 import pandas as pd
@@ -111,6 +122,7 @@ df['trending_date'] = df['trending_date'].str[0:10]
 
 df['time_diff'] = df.apply(lambda x: time_diff(x['publishedAt'], x['trending_date']), axis=1)
 
+df['category'] = df.categoryId.apply(get_cat)
 
 #tokenizing the sw for title and description
 
