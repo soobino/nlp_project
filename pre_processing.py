@@ -69,6 +69,8 @@ def read_pickle(path_o, file_n):
 
 import pandas as pd
 import nltk
+import numpy as np
+
 data_path = "/Users/vedjain/python_npl/youtube_project/data/"
 out_path = "/Users/vedjain/python_npl/youtube_project/"
 
@@ -116,5 +118,61 @@ df['time_diff'] = df.apply(lambda x: time_diff(x['publishedAt'], x['trending_dat
 #nltk.download('punkt')
 df['tokenized_title_sw'] = df['title_sw'].apply(nltk.word_tokenize)
 df['tokenized_description_sw'] = df['description_sw'].apply(nltk.word_tokenize)
+
+#define array of data
+data = np.array(df['view_count'].tolist())
+
+view1, view2, view3, view4 = np.percentile(data, [20, 40, 60, 80])
+
+data = np.array(df['likes'].tolist())
+
+likes1, likes2, likes3, likes4 = np.percentile(data, [20, 40, 60, 80])
+
+data = np.array(df['comment_count'].tolist())
+
+com1, com2, com3, com4 = np.percentile(data, [20, 40, 60, 80])
+
+conditions = [
+    (df['view_count'] <= view1),
+    (df['view_count'] > view1) & (df['view_count'] <= view2),
+    (df['view_count'] > view2) & (df['view_count'] <= view3),
+    (df['view_count'] > view3) & (df['view_count'] <= view4),
+    (df['view_count'] > view4)
+    ]
+
+# create a list of the values we want to assign for each condition
+values = ['bucket_1', 'bucket_2', 'bucket_3', 'bucket_4', 'bucket_5']
+
+# create a new column and use np.select to assign values to it using our lists as arguments
+df['views_bucket'] = np.select(conditions, values)
+
+conditions = [
+    (df['likes'] <= likes1),
+    (df['likes'] > likes1) & (df['likes'] <= likes2),
+    (df['likes'] > likes2) & (df['likes'] <= likes3),
+    (df['likes'] > likes3) & (df['likes'] <= likes4),
+    (df['likes'] > likes4)
+    ]
+
+# create a list of the values we want to assign for each condition
+values = ['bucket_1', 'bucket_2', 'bucket_3', 'bucket_4', 'bucket_5']
+
+# create a new column and use np.select to assign values to it using our lists as arguments
+df['likes_bucket'] = np.select(conditions, values)
+
+conditions = [
+    (df['comment_count'] <= com1),
+    (df['comment_count'] > com1) & (df['comment_count'] <= com2),
+    (df['comment_count'] > com2) & (df['comment_count'] <= com3),
+    (df['comment_count'] > com3) & (df['comment_count'] <= com4),
+    (df['comment_count'] > com4)
+    ]
+
+# create a list of the values we want to assign for each condition
+values = ['bucket_1', 'bucket_2', 'bucket_3', 'bucket_4', 'bucket_5']
+
+# create a new column and use np.select to assign values to it using our lists as arguments
+df['comments_bucket'] = np.select(conditions, values)
+
 
 write_pickle(df, out_path, "df")
