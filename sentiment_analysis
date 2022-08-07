@@ -1,0 +1,160 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jul 30 10:56:22 2022
+
+@author: vedjain
+"""
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+import re
+import contractions
+from dateutil import parser
+
+
+def rem_sw(var_in):
+    sw = list(set(stopwords.words('english')))
+    sw.append("like")
+    sw.append("comment")
+    sw.append("subscribe")
+    tmp = [word for word in var_in.split() if word not in sw]
+    return ' '.join(tmp)
+
+def stem_fun(var_in):
+    ps = PorterStemmer()
+    ps_res = [ps.stem(word) for word in var_in.split()]
+    # ps_res = list()
+    # for word_t in var_in.split():
+    #     ps_res.append(ps.stem(word_t))
+    return ' '.join(ps_res)
+
+def clean_txt(var_in):
+    #pip install contractions
+    #expands contractions
+    var_in = rem_url(str(var_in))
+    var_in = contractions.fix(var_in)
+    tmp = re.sub("[^A-Za-z!?]+", " ", var_in).lower()
+    return tmp
+
+def rem_url(var_in):
+    return re.sub('http://\S+|https://\S+', '', var_in)
+
+def get_time(var_in):
+    return var_in[-10:]
+
+def time_diff (d1, d2):
+    date1 = parser.parse(d1)
+    date2 = parser.parse(d2)
+    
+    return date2 - date1
+
+#-----------------------------------------------------
+
+import pandas as pd
+from os.path import exists
+import nltk
+import pickle
+data_path = "/Users/Chris/Documents/Columbia MAFN/Natural Language Processing 5067/Final Project/"
+
+#check cache
+file_exists = exists(data_path+"projectdf.pk")
+
+#preprocess
+if file_exists:
+    df = pickle.load(open(data_path + "projectdf.pk", "rb"))
+else:
+    #read in data
+    
+    df = pd.read_csv('US_youtube_trending_data.csv')
+
+    #drop all videos besides ones posted in this year
+    df.drop(df[df['publishedAt'] < '2022-01-01'].index, inplace = True)
+    #sort by descending order of when it was trending
+    
+    cols = ['video_id','title']
+    df['num_days_trending'] = df.groupby(cols)['video_id'].transform('size')
+    
+    df.drop_duplicates(subset = ['video_id'], inplace = True)
+    
+    df.sort_values(by=["trending_date"], ascending = False, inplace=True)
+    
+    df = df.reset_index(drop=True) #update indicies after sort
+    
+    
+    df["title_clean"] = df.title.apply(clean_txt)
+    df["description_clean"] = df.description.apply(clean_txt)
+    
+    df["title_sw"] = df.title_clean.apply(rem_sw)
+    df["description_sw"] = df.description_clean.apply(rem_sw)
+    
+    df['title_stem'] = df.title_sw.apply(stem_fun)
+    df['description_stem'] = df.description_sw.apply(stem_fun)
+    
+    #tokenize the tags
+    df['tags'] = df.tags.str.split(pat = '|')
+    
+    df['publish_time'] = df.publishedAt.apply(get_time)
+    df['trending_time'] = df.trending_date.apply(get_time)
+    
+    df['publishedAt'] = df['publishedAt'].str[0:10]
+    df['trending_date'] = df['trending_date'].str[0:10]
+    
+    df['time_diff'] = df.apply(lambda x: time_diff(x['publishedAt'], x['trending_date']), axis=1)   
+    #tokenizing the sw for title and description
+    
+    #import nltk
+    #nltk.download('punkt')
+    df['tokenized_title_sw'] = df['title_sw'].apply(nltk.word_tokenize)
+    df['tokenized_description_sw'] = df['description_sw'].apply(nltk.word_tokenize)
+        
+    pickle.dump(df, open(data_path + "projectdf.pk", "wb"))
+    
+#-----------------------------------------------------   
+    
+import matplotlib.pyplot as plt
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+def vader_sentiment(text):
+    senti = SentimentIntensityAnalyzer()
+    return senti.polarity_scores(text)["compound"]
+
+
+import glob
+sentiment_words = {}
+for file in glob.glob("*.txt"):
+    f = open(file, 'r', encoding="ISO-8859-1")
+    sentiment_words[re.sub("\.txt","",file)] = f.read().split() 
+    f.close()  
+
+def gen_senti(text):              
+    # count number of sentiment words
+    positive_count = 0
+    negative_count = 0
+    
+    for word in text.split():
+        if word in sentiment_words["positive-words"]:
+            positive_count += 1
+        if word in sentiment_words["negative-words"]:
+            negative_count += 1
+
+    # check for no matches
+    if (positive_count == 0 and negative_count == 0):
+        print("Text contains no positive or negative words.")
+        return float("NaN") 
+    
+    # calculate sentiment score
+    sentiment = (positive_count - negative_count) / (positive_count + negative_count)    
+    print(f"Sentiment score for \"{text if(len(text)<20) else text[:20]+'...'}\" is {sentiment:.4f}.")
+    return sentiment
+
+
+cols = ['title_sw', 'description_sw']
+for col in cols:
+    df[col+"_vader"] = df[col].apply(vader_sentiment)
+    df[col+"_simple_senti"] = df[col].apply(gen_senti)
+    plt.hist(df[col+"_vader"])
+
+# remove outliers with big likes
+df["likes_per_day_trending"] = df.likes/df.num_days_trending
+df = df[df["likes_per_day_trending"]<30000]
+
+plt.scatter(df.likes_per_day_trending, df.description_sw_vader)
