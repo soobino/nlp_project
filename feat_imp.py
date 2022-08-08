@@ -167,6 +167,8 @@ X_test = scaler.transform(X_test)
 classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state = 42)
 classifier.fit(X_train, y_train)
 
+feat_imp_title_views = classifier.feature_importances_
+
 y_pred = classifier.predict(X_test)
 
 # Making the Confusion Matrix
@@ -191,6 +193,8 @@ X_test = scaler.transform(X_test)
 
 classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state = 42)
 classifier.fit(X_train, y_train)
+
+
 
 y_pred = classifier.predict(X_test)
 
