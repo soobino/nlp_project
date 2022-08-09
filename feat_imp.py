@@ -76,10 +76,12 @@ words = df['tokenized_title_sw'][0]
 views = list()
 like = list()
 com = list()
+cat = list()
 for i in words:
     views.append(df['views_bucket'][0])
     like.append(df['likes_bucket'][0])
     com.append(df['comments_bucket'][0])
+    cat.append(df['category'][0])
 
 for k, i in enumerate(df['tokenized_title_sw'][1:]):
     words += i
@@ -88,23 +90,25 @@ for k, i in enumerate(df['tokenized_title_sw'][1:]):
         views.append(df['views_bucket'][k])
         like.append(df['likes_bucket'][k])
         com.append(df['comments_bucket'][k])
-    # words.append(df['views_bucket'][k])
+        cat.append(df['category'][k])
     
 features_title['tokens'] = words
 features_title['views_bucket'] = views
 features_title['likes_bucket'] = like
 features_title['comments_bucket'] = com
+features_title['category'] = cat
 
 words = df['tokenized_description_sw'][0]
 views = list()
 like = list()
 com = list()
+cat = list()
 
 for i in words:
     views.append(df['views_bucket'][0])
     like.append(df['likes_bucket'][0])
     com.append(df['comments_bucket'][0])
-
+    cat.append(df['category'][0])
 
 for k, i in enumerate(df['tokenized_description_sw'][1:]):
     words += i
@@ -113,11 +117,13 @@ for k, i in enumerate(df['tokenized_description_sw'][1:]):
         views.append(df['views_bucket'][k])
         like.append(df['likes_bucket'][k])
         com.append(df['comments_bucket'][k])
+        cat.append(df['category'][k])
 
 features_description['tokens'] = words
 features_description['views_bucket'] = views
 features_description['likes_bucket'] = like
 features_description['comments_bucket'] = com
+features_description['category'] = cat
 
 
 features_description['views_bucket'] = features_description['views_bucket'].str[-1:]
@@ -139,7 +145,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
-
+import shap
 print('Libraries Imported')
 
 """
@@ -165,12 +171,11 @@ X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
 classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state = 42)
+
 classifier.fit(X_train, y_train)
 
-feat_imp_title_views = classifier.feature_importances_
-
 y_pred = classifier.predict(X_test)
-
+title_views_feat_imp = classifier.feature_importances_
 # Making the Confusion Matrix
 compare_title_views = (pd.crosstab(y_test, y_pred, rownames=['Actual Bucket'], colnames=['Predicted Bucket']))
 
@@ -178,10 +183,14 @@ comparing_title = pd.DataFrame()
 comparing_title['actual_views'] = y_test
 comparing_title['prediction_views'] = y_pred
 
+
 title_views_acc = (classification_report(y_test, y_pred))
+
+
 
 X = features_title['num_rep']
 y = features_title['comments_bucket']
+
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 21)
 
@@ -232,6 +241,33 @@ comparing_title.index = features_title['tokens'][comparing_title.index]
 
 title_likes_acc = (classification_report(y_test, y_pred))
 
+
+X = features_title['num_rep']
+y = features_title['category']
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 21)
+
+scaler = StandardScaler()
+X_train = np.array(X_train).reshape(-1,1)
+X_test = np.array(X_test).reshape(-1,1)
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state = 42)
+classifier.fit(X_train, y_train)
+
+
+
+y_pred = classifier.predict(X_test)
+
+# Making the Confusion Matrix
+compare_title_category = (pd.crosstab(y_test, y_pred, rownames=['Actual Category'], colnames=['Predicted Category']))
+
+comparing_title['actual_category'] = y_test
+comparing_title['prediction_category'] = y_pred
+
+title_category_acc = (classification_report(y_test, y_pred))
 
 """
 DESCRIPTION
@@ -317,3 +353,30 @@ comparing_description['prediction_likes'] = y_pred
 comparing_description.index = features_description['tokens'][comparing_description.index]
 
 description_likes_acc = (classification_report(y_test, y_pred))
+
+X = features_description['num_rep']
+y = features_description['category']
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 21)
+
+scaler = StandardScaler()
+X_train = np.array(X_train).reshape(-1,1)
+X_test = np.array(X_test).reshape(-1,1)
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+classifier = RandomForestClassifier(n_estimators = 100, criterion = 'entropy', random_state = 42)
+classifier.fit(X_train, y_train)
+
+
+
+y_pred = classifier.predict(X_test)
+
+# Making the Confusion Matrix
+compare_description_category = (pd.crosstab(y_test, y_pred, rownames=['Actual Category'], colnames=['Predicted Category']))
+
+comparing_description['actual_category'] = y_test
+comparing_description['prediction_category'] = y_pred
+
+description_category_acc = (classification_report(y_test, y_pred))
